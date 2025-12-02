@@ -111,7 +111,7 @@ def cross_loss(y_pred , y_true):
     return y
 
 
-def adam_optimizer(params , grads , m , v , t , lr=0.001 , beta1=0.9 , beta2=0.9 , eps=1e-8):
+def adam_optimizer(params , grads , m , v , t , lr , beta1=0.9 , beta2=0.9 , eps=1e-8):
     """定义Adam优化器
     Args:
         @ params-需要跟新的参数列表即(W1,W2,W3,b1,b2,b3)
@@ -129,20 +129,18 @@ def adam_optimizer(params , grads , m , v , t , lr=0.001 , beta1=0.9 , beta2=0.9
         @ v-二阶矩
     """
     updated_params = []
-    for param , grad , m_i , v_i in zip(params , grads , m , v):
-        m_i = beta1 * m_i + (1-beta1) * grad # 求一阶矩
-        v_i = beta2 * v_i + (1-beta2) * grad ** 2 # 求二阶矩
+    for i, (param, grad) in enumerate(zip(params, grads)):
+        m[i] = beta1 * m[i] + (1 - beta1) * grad
+        v[i] = beta2 * v[i] + (1 - beta2) * (grad ** 2)
 
-        # 偏差修正
-        m_i_corrected = m_i/(1-beta1 ** t)
-        v_i_corrected = v_i/(1-beta2 ** t)
+        m_corrected = m[i] / (1 - beta1 ** t)
+        v_corrected = v[i] / (1 - beta2 ** t)
 
-        param = param - lr*m_i_corrected / (np.sqrt(v_i_corrected)+eps)
+        param = param - lr * m_corrected / (np.sqrt(v_corrected) + eps)
         updated_params.append(param)
 
-        m[params.index(param)] = m_i
-        v[params.index(param)] = v_i
     return updated_params, m, v
+
 
 def forward(x , W1 , W2 , W3 , b1 , b2 , b3):
     """定义前向传播函数
@@ -166,28 +164,34 @@ def forward(x , W1 , W2 , W3 , b1 , b2 , b3):
 
     return z1 , z2 , z3 , a1 , a2 , y_pred
 
-def backward(x , t , z1 , a1 , z2 , a2 , z3 , y_pred , W1 , W2 , W3):
+def backward(x , y , z1 , a1 , z2 , a2 , z3 , y_pred , W1 , W2 , W3):
     """反向传播，求解各个参数的梯度大小
     Args:
-        @ x
-
-    
+        @ x-输入层
+        @ y-最大的输入层层数
+        @ zi-未经过激活函数的函数
+        @ ai-经过激活函数的未知数据
+        @ y_pred-经过前向传播后的输出量
+        @ Wi-各个权重的大小
+    Returns:
+        @ dwi-各个权重更新后的变化梯度
+        @ dbi-各个偏置更新后的变化梯度
     """
     batch_size = x.shape[0]
-    # 输出层梯度
-    dz3 = y_pred - t  # 交叉熵 + Softmax 的梯度（简化公式）
-    dW3 = np.dot(a2.T, dz3) / batch_size
-    db3 = np.sum(dz3, axis=0, keepdims=True) / batch_size
-    # 隐藏层2梯度
-    dz2 = np.dot(dz3, W3.T) * tanh_dao(z2)
-    dW2 = np.dot(a1.T, dz2) / batch_size
-    db2 = np.sum(dz2, axis=0, keepdims=True) / batch_size
-    # 隐藏层1梯度
-    dz1 = np.dot(dz2, W2.T) * tanh_dao(z1)
-    dW1 = np.dot(x.T, dz1) / batch_size
-    db1 = np.sum(dz1, axis=0, keepdims=True) / batch_size
-    return dW1, db1, dW2, db2, dW3, db3
+    #反向传播梯度的计算
+    dz3 = y_pred - y
+    dW3 = np.dot(a2.T , dz3)/batch_size
+    db3 = np.sum(dz3 , axis=0 , keepdims=True) / batch_size
+    
+    dz2 = np.dot(dz3 , W3.T)*tanh_dao(z2)
+    dW2 = np.dot(a1.T , dz2)/batch_size
+    db2 = np.sum(dz2 , axis=0 , keepdims=True) / batch_size
 
+    dz1 = np.dot(dz2 , W2.T)*tanh_dao(z1)
+    dW1 = np.dot(x.T , dz1)/batch_size
+    db1 = np.sum(dz1 , axis=0 , keepdims=True) / batch_size
+
+    return dW1, db1, dW2, db2, dW3, db3
 
 
 target = r"E:\mastercode\DeepLearningForPycharm\3_DNN\data\MNIST\raw"
@@ -198,11 +202,101 @@ print("测试集图像形状:", x_test.shape)
 print("测试集标签形状:", t_test.shape) 
 
 input = 28*28
-hidden1 = 512
-hidden2 = 512
+hidden1 = 300
+hidden2 = 300
 output = 10
 W1,W2,W3,b1,b2,b3 = init_network(input , hidden1 , hidden2 , output)
 
 m = [np.zeros_like(param) for param in [W1 , W2 , W3 , b1 , b2 , b3]]
 v = [np.zeros_like(param) for param in [W1 , W2 , W3 , b1 , b2 , b3]]
 t = 0
+
+epochs = 30
+batch_size = 64
+lr = 0.001
+
+loss_list = []
+acc_list = []
+
+for epoch in range(1, epochs + 1):
+    for i in range(0, x_train.shape[0], batch_size):
+        x_batch = x_train[i:i + batch_size]
+        t_batch = t_train[i:i + batch_size]
+
+        # 1. forward 前向传播
+        z1, z2, z3, a1, a2, y_pred = forward(x_batch, W1, W2, W3, b1, b2, b3)
+
+        # 2. backward 反向传播求梯度
+        dW1, db1, dW2, db2, dW3, db3 = backward(
+            x_batch, t_batch, z1, a1, z2, a2, z3, y_pred, W1, W2, W3
+        )
+
+        # 3. Adam优化器
+        params = [W1, W2, W3, b1, b2, b3]
+        grads  = [dW1, dW2, dW3, db1, db2, db3]
+        t += 1
+        params, m, v = adam_optimizer(params, grads, m, v, t, lr=lr)
+        W1, W2, W3, b1, b2, b3 = params
+
+
+    # ================== 每一轮输出 ===========================
+    # 前向传播训练集
+    _, _, _, _, _, y_train_pred = forward(x_train, W1, W2, W3, b1, b2, b3)
+    loss = cross_loss(y_train_pred, t_train)
+
+    # 测试集准确率
+    _, _, _, _, _, y_test_pred = forward(x_test, W1, W2, W3, b1, b2, b3)
+    acc = np.mean(np.argmax(y_test_pred, axis=1) == np.argmax(t_test, axis=1))
+    loss_list.append(loss)
+    acc_list.append(acc)
+    print(f"Epoch {epoch}/{epochs}   Loss={loss:.4f}   Test Acc={acc:.4f}")
+
+_,_,_,_,_,y_test_pred=forward(x_test , W1 , W2 , W3 , b1 , b2 , b3)
+y_true = np.argmax(t_test,axis=1)
+y_pred_label = np.argmax(y_test_pred , axis=1)
+accuacy = np.mean(y_true==y_pred_label)
+print("\nFinal Test Accuracy: ",accuacy)
+
+cm = np.zeros((10,10), dtype=int)
+for i in range(len(y_true)):
+    cm[y_true[i]][y_pred_label[i]] += 1
+
+print("\nConfusion Matrix:")
+print(cm)
+
+plt.figure(figsize=(10,4))
+
+plt.subplot(1,2,1)
+plt.plot(loss_list)
+plt.title("Training Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+
+plt.subplot(1,2,2)
+plt.plot(acc_list ,linewidth = 3)
+plt.title("Test Accuracy")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+
+plt.show()
+
+cm_norm = cm.astype('float') / cm.sum(axis=1, keepdims=True)
+
+plt.figure(figsize=(6,6))
+plt.imshow(cm_norm, cmap='Blues')
+plt.title("Confusion Matrix (Normalized)")
+plt.xlabel("Predicted Label")
+plt.ylabel("True Label")
+plt.colorbar()
+
+for i in range(10):
+    for j in range(10):
+        value = cm_norm[i][j]
+        plt.text(j, i, f"{value:.2f}",
+                 ha='center', va='center',
+                 color='white' if value > 0.5 else 'black')
+
+plt.xticks(np.arange(10))
+plt.yticks(np.arange(10))
+plt.show()
+
