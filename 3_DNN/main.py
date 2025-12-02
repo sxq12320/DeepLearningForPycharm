@@ -211,8 +211,8 @@ m = [np.zeros_like(param) for param in [W1 , W2 , W3 , b1 , b2 , b3]]
 v = [np.zeros_like(param) for param in [W1 , W2 , W3 , b1 , b2 , b3]]
 t = 0
 
-epochs = 30
-batch_size = 64
+epochs = 300
+batch_size = 200
 lr = 0.001
 
 loss_list = []
@@ -223,15 +223,13 @@ for epoch in range(1, epochs + 1):
         x_batch = x_train[i:i + batch_size]
         t_batch = t_train[i:i + batch_size]
 
-        # 1. forward 前向传播
+        #前向传播
         z1, z2, z3, a1, a2, y_pred = forward(x_batch, W1, W2, W3, b1, b2, b3)
 
-        # 2. backward 反向传播求梯度
-        dW1, db1, dW2, db2, dW3, db3 = backward(
-            x_batch, t_batch, z1, a1, z2, a2, z3, y_pred, W1, W2, W3
-        )
+        #反向传播
+        dW1, db1, dW2, db2, dW3, db3 = backward(x_batch, t_batch, z1, a1, z2, a2, z3, y_pred, W1, W2, W3)
 
-        # 3. Adam优化器
+        #Adam优化器
         params = [W1, W2, W3, b1, b2, b3]
         grads  = [dW1, dW2, dW3, db1, db2, db3]
         t += 1
@@ -266,18 +264,17 @@ print(cm)
 
 plt.figure(figsize=(10,4))
 
-plt.subplot(1,2,1)
-plt.plot(loss_list)
-plt.title("Training Loss")
+plt.plot(loss_list,linewidth = 3,color = 'red' , label = 'LOSS LINE')
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
 
-plt.subplot(1,2,2)
-plt.plot(acc_list ,linewidth = 3)
+plt.plot(acc_list ,linewidth = 3 , color = 'blue' , label = 'Accuracy LINE')
 plt.title("Test Accuracy")
 plt.xlabel("Epoch")
 plt.ylabel("Accuracy")
 
+plt.grid(True)
+plt.legend()
 plt.show()
 
 cm_norm = cm.astype('float') / cm.sum(axis=1, keepdims=True)
