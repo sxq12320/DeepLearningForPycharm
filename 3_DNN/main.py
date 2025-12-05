@@ -5,6 +5,7 @@ import sys
 import os 
 import gzip
 
+
 def init_data(target):
     """将MNIST中的数据导入模型中,训练和检验数据的初始化
     Args:
@@ -67,6 +68,7 @@ def init_network(input , hidden1 , hidden2 , output):
     b3 = np.zeros((1 , output))
     return W1,W2,W3,b1,b2,b3
 
+
 def tanh(x):
     """定义双曲正切函数作为激活函数
     Args:
@@ -77,6 +79,7 @@ def tanh(x):
     y = np.tanh(x)
     return y
 
+
 def tanh_dao(x):
     """定义双曲正切函数的导数用在反向传播部分
     Args:
@@ -86,6 +89,7 @@ def tanh_dao(x):
     """
     y =  1 - np.tanh(x) ** 2
     return y
+
 
 def softmax(x):
     """softmax激活函数的定义
@@ -164,6 +168,7 @@ def forward(x , W1 , W2 , W3 , b1 , b2 , b3):
 
     return z1 , z2 , z3 , a1 , a2 , y_pred
 
+
 def backward(x , y , z1 , a1 , z2 , a2 , z3 , y_pred , W1 , W2 , W3):
     """反向传播，求解各个参数的梯度大小
     Args:
@@ -223,26 +228,19 @@ for epoch in range(1, epochs + 1):
         x_batch = x_train[i:i + batch_size]
         t_batch = t_train[i:i + batch_size]
 
-        #前向传播
         z1, z2, z3, a1, a2, y_pred = forward(x_batch, W1, W2, W3, b1, b2, b3)
 
-        #反向传播
         dW1, db1, dW2, db2, dW3, db3 = backward(x_batch, t_batch, z1, a1, z2, a2, z3, y_pred, W1, W2, W3)
 
-        #Adam优化器
         params = [W1, W2, W3, b1, b2, b3]
         grads  = [dW1, dW2, dW3, db1, db2, db3]
         t += 1
         params, m, v = adam_optimizer(params, grads, m, v, t, lr=lr)
         W1, W2, W3, b1, b2, b3 = params
 
-
-    # ================== 每一轮输出 ===========================
-    # 前向传播训练集
     _, _, _, _, _, y_train_pred = forward(x_train, W1, W2, W3, b1, b2, b3)
     loss = cross_loss(y_train_pred, t_train)
 
-    # 测试集准确率
     _, _, _, _, _, y_test_pred = forward(x_test, W1, W2, W3, b1, b2, b3)
     acc = np.mean(np.argmax(y_test_pred, axis=1) == np.argmax(t_test, axis=1))
     loss_list.append(loss)
@@ -250,9 +248,9 @@ for epoch in range(1, epochs + 1):
     print(f"Epoch {epoch}/{epochs}   Loss={loss:.4f}   Test Acc={acc:.4f}")
 
 _,_,_,_,_,y_test_pred=forward(x_test , W1 , W2 , W3 , b1 , b2 , b3)
-y_true = np.argmax(t_test,axis=1)
-y_pred_label = np.argmax(y_test_pred , axis=1)
-accuacy = np.mean(y_true==y_pred_label)
+y_true = np.argmax(t_test,axis=1)#数组最大值所在位置
+y_pred_label = np.argmax(y_test_pred , axis=1)#数组最大值所在位置
+accuacy = np.mean(y_true==y_pred_label)#求均值
 print("\nFinal Test Accuracy: ",accuacy)
 
 cm = np.zeros((10,10), dtype=int)
@@ -296,4 +294,3 @@ for i in range(10):
 plt.xticks(np.arange(10))
 plt.yticks(np.arange(10))
 plt.show()
-
