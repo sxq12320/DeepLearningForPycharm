@@ -1,0 +1,15 @@
+# 忽略所有 Word 文档
+*.doc
+*.docx
+*.docm  # 包含宏的 Word 文件（可选）
+*.dotx  # Word 模板文件（可选）
+
+# 忽略压缩包文件（覆盖所有常见格式）
+*.zip       # ZIP 压缩包
+*.rar       # RAR 压缩包
+*.7z        # 7-Zip 压缩包
+
+4_CNN/data/
+3_DNN/data/
+
+__pycache__/
